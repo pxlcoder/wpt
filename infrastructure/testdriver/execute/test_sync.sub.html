@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>TestDriver execute method</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+
+<iframe src="https://{{host}}:{{ports[https][0]}}/infrastructure/testdriver/execute/child.html?uuid={{uuid()}}"></iframe>
+
+<script>
+setup({single_test: true})
+console.log("script");
+onload = async () => {
+    console.log("onload")
+    var iframe = document.getElementsByTagName("iframe")[0];
+    console.log("before execute")
+    let content = await test_driver.execute("return document.body.textContent", false, iframe);
+    console.log("after execute")
+    assert_equals(content.trim(), "PASS");
+    done();
+}
+</script>

@@ -116,6 +116,24 @@
         },
 
         /**
+         * Execute script
+         *
+         * Execute some script in a function body, possibly in another context
+         *
+         * @param {String} script - Body of function to run
+         * @param {bool} async - If true, the first argument to the implicit function is
+         *                       a callback which must be called with the script return value.
+         * @param {WindowProxy} context - Browsing context in which
+         *                                to run the call, or null for the current
+         *                                browsing context.
+         *
+         * @returns {Promise} fulfilled with the return value of the script
+         */
+        execute: function(script, async, context=null) {
+            return window.test_driver_internal.execute(script, async, context)
+        },
+
+        /**
          * Triggers a user-initiated click
          *
          * This matches the behaviour of the {@link
@@ -468,6 +486,10 @@
 
         _get_context_id: function() {
             throw new Error("unimplemented");
+        },
+
+        execute: function(script, async, context=null) {
+            return Promise.reject(new Error("unimplemented"));
         },
 
         click: function(element, coords) {

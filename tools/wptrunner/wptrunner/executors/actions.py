@@ -40,6 +40,19 @@ class SendKeysAction(object):
         self.protocol.send_keys.send_keys(element, keys)
 
 
+class ExecuteAction(object):
+    name = "execute"
+
+    def __init__(self, logger, protocol):
+        self.logger = logger
+        self.protocol = protocol
+
+    def __call__(self, payload):
+        rv = self.protocol.base.execute_script(payload["script"],
+                                               payload["async"])
+        return rv
+
+
 class ActionSequenceAction(object):
     name = "action_sequence"
 
@@ -182,16 +195,19 @@ class SetUserVerifiedAction(object):
         return self.protocol.virtual_authenticator.set_user_verified(authenticator_id, uv)
 
 
-actions = [ClickAction,
-           DeleteAllCookiesAction,
-           SendKeysAction,
-           ActionSequenceAction,
-           GenerateTestReportAction,
-           SetPermissionAction,
-           AddVirtualAuthenticatorAction,
-           RemoveVirtualAuthenticatorAction,
-           AddCredentialAction,
-           GetCredentialsAction,
-           RemoveCredentialAction,
-           RemoveAllCredentialsAction,
-           SetUserVerifiedAction]
+actions = [
+    ActionSequenceAction,
+    AddCredentialAction,
+    AddVirtualAuthenticatorAction,
+    ClickAction,
+    DeleteAllCookiesAction,
+    ExecuteAction,
+    GenerateTestReportAction,
+    GetCredentialsAction,
+    RemoveAllCredentialsAction,
+    RemoveCredentialAction,
+    RemoveVirtualAuthenticatorAction,
+    SendKeysAction,
+    SetPermissionAction,
+    SetUserVerifiedAction
+]
