@@ -1,0 +1,117 @@
+<!DOCTYPE HTML>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="/resources/channel.sub.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search)
+const uuid = params.get("uuid");
+let ctxChannel = null; // This is created in the initial load
+
+// --------
+// Recording events
+
+// The recorded events are stored in localStorage rather than global variables
+// to catch events fired just before navigating out.
+function getPushedItems(key) {
+  return JSON.parse(localStorage.getItem(key) || '[]');
+}
+
+function pushItem(key, value) {
+  const array = getPushedItems(key);
+  array.push(value);
+  localStorage.setItem(key, JSON.stringify(array));
+}
+
+function recordEvent(eventName) {
+  pushItem(uuid + '.observedEvents', eventName);
+}
+
+function getRecordedEvents() {
+  return getPushedItems(uuid + '.observedEvents');
+}
+
+// Records events fired on `window` and `document`, with names listed in
+// `eventNames`.
+function startRecordingEvents(eventNames) {
+  for (const eventName of eventNames) {
+    window.addEventListener(eventName, event => {
+      let result = eventName;
+      if (event.persisted) {
+        result += '.persisted';
+      }
+      if (eventName === 'visibilitychange') {
+        result += '.' + document.visibilityState;
+      }
+      recordEvent('window.' + result);
+    });
+    document.addEventListener(eventName, () => {
+      let result = eventName;
+      if (eventName === 'visibilitychange') {
+        result += '.' + document.visibilityState;
+      }
+      recordEvent('document.' + result);
+    });
+  }
+}
+
+// When a comma-separated list of event names are given as the `events`
+// parameter in the URL, start record the events of the given names.
+if (params.get('events')) {
+  startRecordingEvents(params.get('events').split(','));
+}
+
+// --------
+// Executor and BFCache detection
+
+// bfcache is typically disabled if there's an open network connection e.g.
+// a websocket. Therefore some care is needed to avoid websockets being
+// left open when navigating.
+
+// To navigate the page, postMessage on a remote context a message of the form
+// {name: "navigateTo", url: `${url}`}
+// Using postMessage here ensures we don't create an unnecessary
+// channel to send a result.
+
+// Then the calling page must call TestDriverRemote.pause() before continuing.
+// This ensures that no subsequent commands will be buffered in the underlying
+// websocket before the navigation starts. This has to be done in the caller
+// to avoid a race condition between the caller sending a new command and the
+// socket being closed.
+
+// This page calls closeAllChannelSockets before initiating the navigation to
+// ensure that open websockets don't interfere with bfcache.
+
+// If the page is retrieved from the bfcache it will process subsequent commands
+// after reconnecting to the context channel in the pageShow event listener.
+// Otherwise it will reconnect in the load event listener.
+
+window.isPageshowFired = false;
+
+window.loadCount = parseInt(localStorage.getItem(uuid + '.loadCount') || '0') + 1;
+localStorage.setItem(uuid + '.loadCount', loadCount);
+
+// Tasks are executed after a pageshow event is fired.
+window.addEventListener('load', async event => {
+    ctxChannel = await ctx_channel();
+    ctxChannel.addMessageHandler(msg => {
+        let {name} = msg;
+        if (name === "navigateTo") {
+            navigateTo(msg.url);
+        }
+    });
+  },
+  {once: true});
+
+async function navigateTo(url) {
+  window.addEventListener(
+    'pageshow',
+    async (event) => {
+      window.isPageshowFired = true;
+      await ctxChannel.connect();
+    },
+    {once: true});
+    await closeAllChannelSockets();
+    location.href = url;
+}
+
+</script>
