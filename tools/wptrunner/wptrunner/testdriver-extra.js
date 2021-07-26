@@ -66,19 +66,12 @@
         return rv;
     }
 
-    function get_window_id(win) {
-        if (win == window && is_test_context) {
-            return null;
-        }
-        if (!win.__wptrunner_id) {
-            // generate a uuid
-            win.__wptrunner_id = [to_hex(rand_int(32), 8),
-                                  to_hex(rand_int(16), 4),
-                                  to_hex(0x4000 | rand_int(12), 4),
-                                  to_hex(0x8000 | rand_int(14), 4),
-                                  to_hex(rand_int(48), 12)].join("-");
-        }
-        return win.__wptrunner_id;
+    function create_uuid() {
+        return [to_hex(rand_int(32), 8),
+         to_hex(rand_int(16), 4),
+         to_hex(0x4000 | rand_int(12), 4),
+         to_hex(0x8000 | rand_int(14), 4),
+         to_hex(rand_int(48), 12)].join("-");
     }
 
     const get_context = function(element) {
@@ -128,7 +121,7 @@
                             action: name,
                             ...props};
         if (action_msg.context) {
-          action_msg.context = get_window_id(action_msg.context);
+          action_msg.context = window.test_driver_internal._get_context_id(action_msg.context);
         }
         if (is_test_context) {
             cmd_id = window.__wptrunner_message_queue.push(action_msg);
@@ -137,7 +130,7 @@
                 throw new Error("Tried to run in a non-testharness window without a call to set_test_context");
             }
             if (action_msg.context === null) {
-                action_msg.context = get_window_id(window);
+                action_msg.context = window.test_driver_internal._get_context_id(window);
             }
             cmd_id = ctx_cmd_id++;
             action_msg.cmd_id = cmd_id;
@@ -158,6 +151,67 @@
     };
 
     window.test_driver_internal.in_automation = true;
+
+    window.test_driver_internal._get_context_id = function(ctx) {
+        let win, container;
+        if (ctx == null) {
+            return ctx;
+        } else if (typeof ctx == "string") {
+            return ctx;
+        } else {
+            try {
+                if("localName" in ctx && ["iframe", "frame", "embed", "object"].includes(ctx.localName)) {
+                    container = ctx;
+                    win = ctx.localName == "embed" ? ctx.getSVGDocument() : ctx.contentWindow;
+                }
+            }
+            catch(e) {
+                console.error(e);
+            }
+            if (!container) {
+                // Don't know how to check we really have a Window in a way that works cross-global;
+                // instanceof doesn't help.
+                win = ctx;
+            }
+        }
+        let rv;
+        try {
+            // If there's a UUID on the URL, use that
+            if (win) {
+                let uuid = new URL(win.location.href).searchParams.get("uuid");
+                if (uuid) {
+                    rv = uuid;
+                }
+            }
+            if (!rv) {
+                if(!win.hasOwnProperty("__wptrunner_id")) {
+                    // generate a uuid, and put it on the JS Window
+                    win.__wptrunner_id = create_uuid();;
+                }
+                rv = win.__wptrunner_id;
+            }
+        } catch (e) {
+            if (container) {
+                // This is a cross-origin window, so we can't read
+                // __wptrunner_id or the URL directly, but if we have a container we
+                // can use that.
+
+                let container_url_attr = {"iframe": "src",
+                                          "frame": "src",
+                                          "object": "data",
+                                          "embed": "src"}[container.localName];
+                let params = new URL(container[container_url_attr]).searchParams;
+                let uuid = params.get("uuid");
+                if (uuid) {
+                    rv = uuid;
+                }
+            }
+        }
+        if (!rv) {
+            throw new Error("Couldn't get an id for window; windows must be same origin or have a uuid property in the URL");
+        }
+        return rv;
+    };
 
     window.test_driver_internal.set_test_context = function(context) {
         if (window.__wptrunner_message_queue) {

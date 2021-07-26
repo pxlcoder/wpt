@@ -373,12 +373,12 @@ class TestDriverProtocolPart(ProtocolPart):
         :param str message: Additional data to add to the message."""
         pass
 
-    def switch_to_window(self, wptrunner_id, initial_window=None):
+    def switch_to_window(self, target_window_id, initial_window=None):
         """Switch to a window given a wptrunner window id
 
-        :param str wptrunner_id: Testdriver-specific id for the target window
+        :param str target_window_id: Testdriver-specific id for the target window
         :param str initial_window: WebDriver window id for the test window"""
-        if wptrunner_id is None:
+        if target_window_id is None:
             return
 
         if initial_window is None:
@@ -411,10 +411,15 @@ class TestDriverProtocolPart(ProtocolPart):
                 # For embed we can't tell fpr sure if there's a nested browsing context, so always return it
                 # and fail later if there isn't
                 result = self.parent.base.execute_script("""
-                let contextParents = Array.from(document.querySelectorAll("frame, iframe, embed, object"))
-                    .filter(elem => elem.localName !== "embed" ? (elem.contentWindow !== null) : true);
-                return [window.__wptrunner_id, contextParents]""")
-            except Exception:
+                    let ids = [window.__wptrunner_id, new URLSearchParams(location.search).get('uuid')];
+
+                    let contextParents = Array.from(document.querySelectorAll("frame, iframe, embed, object"))
+                    .filter(elem => elem.localName !== "embed" ? (elem.contentWindow !== null) : true)
+                    .map(elem => elem.localName != "object" ? [elem, elem.src] : [elem, elem.data])
+
+                    return [location.href, ids, contextParents]""")
+            except Exception as e:
+                self.parent.logger.debug(e)
                 continue
 
             if result is None:
@@ -422,17 +427,26 @@ class TestDriverProtocolPart(ProtocolPart):
                 # sure how we want to handle that case.
                 continue
 
-            handle_window_id, nested_context_containers = result
+            url, handle_window_ids, nested_context_containers = result
+            self.parent.logger.debug("Testing window url: %s" % url)
 
-            if handle_window_id and str(handle_window_id) == wptrunner_id:
+            if handle_window_ids and any(str(handle_window_id) == target_window_id
+                                         for handle_window_id in handle_window_ids
+                                         if handle_window_id):
+                self.parent.logger.debug("Found uuid %s" % target_window_id)
                 return
 
-            for elem in reversed(nested_context_containers):
+            for elem, container_window_id in reversed(nested_context_containers):
+                # If the container has a uuid in the URL, switch to that one directly and return
+                if container_window_id and container_window_id == target_window_id:
+                    self._switch_to_frame(elem)
+                    return
+
                 # None here makes us switch back to the parent after we've processed the frame
                 stack.append(None)
                 stack.append(elem)
 
-        raise Exception("Window with id %s not found" % wptrunner_id)
+        raise Exception("Window with id %s not found" % target_window_id)
 
     @abstractmethod
     def _switch_to_frame(self, index_or_elem):

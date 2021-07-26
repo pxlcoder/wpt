@@ -798,11 +798,11 @@ class CallbackHandler(object):
 
     def __call__(self, result):
         url, command, payload = result
-        self.logger.debug("Got async callback: %s" % result[1])
+        self.logger.debug("Got async callback: %s" % command)
         try:
             callback = self.callbacks[command]
         except KeyError:
-            raise ValueError("Unknown callback type %r" % result[1])
+            raise ValueError("Unknown callback type %r" % command)
         return callback(url, payload)
 
     def process_complete(self, url, payload):

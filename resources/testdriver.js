@@ -466,6 +466,10 @@
          */
         in_automation: false,
 
+        _get_context_id: function() {
+            throw new Error("unimplemented");
+        },
+
         click: function(element, coords) {
             if (this.in_automation) {
                 return Promise.reject(new Error('Not implemented'));
