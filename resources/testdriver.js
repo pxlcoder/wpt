@@ -705,4 +705,70 @@
             return stash_message_handler.poll(this._get_context_id(window));
         }
     };
+
+    window.test_driver.RemoteContext = function(ctx) {
+        this.context_id = window.test_driver_internal._get_context_id(ctx);
+    };
+
+    window.test_driver.RemoteContext.prototype = {
+        execute: function(script, async) {
+            return window.test_driver.execute(script, async, this.context_id);
+        },
+
+        delete_all_cookies: function() {
+            return window.test_driver.delete_all_cookies(this.context_id);
+        },
+
+        freeze: function(context=null) {
+            return window.test_driver.freeze(this.context_id);
+        },
+
+        action_sequence: function(actions) {
+            return window.test_driver.action_sequence(actions, this.context_id);
+        },
+
+        generate_test_report: function(message) {
+            return window.test_driver.generate_test_report(message, this.context_id);
+        },
+
+        set_permission: function(permission_params) {
+            return window.test_driver.set_permission(permission_params, this.context_id);
+        },
+
+        add_virtual_authenticator: function(config) {
+            return window.test_driver.add_virtual_authenticator(config, this.context_id);
+        },
+
+        remove_virtual_authenticator: function(authenticator_id) {
+            return window.test_driver.remove_virtual_authenticator(authenticator_id, this.context_id);
+        },
+
+        add_credential: function(authenticator_id, credential) {
+            return window.test_driver.add_credential(authenticator_id, credential, this.context_id);
+        },
+
+        get_credentials: function(authenticator_id) {
+            return window.test_driver.get_credentials(authenticator_id, this.context_id);
+        },
+
+        remove_credential: function(authenticator_id, credential_id) {
+            return window.test_driver.add_credential(authenticator_id, credential_id, this.context_id);
+        },
+
+        remove_all_credentials: function(authenticator_id) {
+            return window.test_driver.remove_all_credentials(authenticator_id,this.context_id);
+        },
+
+        set_user_verified: function(authenticator_id, uv) {
+            return window.test_driver.set_user_verified(authenticator_id, uv, this.context_id);
+        },
+
+        set_storage_access: function(origin, embedding_origin, blocked) {
+            return window.test_driver.set_storage_access(origin, embedding_origin, blocked, this.context_id);
+        },
+
+        send: function(msg) {
+            return window.test_driver.send(msg, this.context_id);
+        }
+    };
 })();
