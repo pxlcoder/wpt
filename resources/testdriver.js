@@ -473,7 +473,117 @@
             const blocked = state === "blocked";
             return window.test_driver_internal.set_storage_access(origin, embedding_origin, blocked, context);
         },
+
+        /**
+         * Send a JSON-serializable message to another browsing context
+         *
+         * @param {Object} msg - JSON-serializable data to send to the remote context
+         *
+         * @returns {Promise} Fulfilled after the message has been dispatched
+         */
+        send: function(msg, context) {
+            let payload = {src: window.test_driver_internal._get_context_id(window),
+                           data: msg};
+            return window.test_driver_internal.send(JSON.stringify(payload), context);
+        },
+
+        /**
+         * Check if there is a message for the current browsing context
+         *
+         * @returns {Promise} Fulfilled with the result, if the result is
+         */
+        poll: async function() {
+            let result = await window.test_driver_internal.poll();
+            if (result !== null) {
+                result = JSON.parse(result);
+            }
+            return result;
+        },
+
+        recv: async function(timeout=null) {
+            let end_time = null;
+            if (timeout) {
+                end_time = performance.now() + timeout;
+            }
+            let result;
+            while (!end_time || performance.now() < end_time) {
+                result = await window.test_driver.poll();
+                if (result !== null) {
+                    return result;
+                }
+            }
+            throw new Error("Reached timeout");
+        }
     };
+
+    function randomDelay() {
+        return new Promise(resolve => setTimeout(resolve, 10 + 90*Math.random()));
+    }
+
+    function StashMessageHandler(max_concurrency=1) {
+        this.url = new URL("/resources/dispatcher.py", location.href).href;
+        this.max_concurrency = max_concurrency;
+        this.pending = 0;
+        this.waiting = [];
+    }
+
+    StashMessageHandler.prototype = {
+        queue: async function(task) {
+            this.pending++;
+            if (this.pending > this.max_concurrency) {
+                await new Promise(resolve => this.waiting.push(resolve));
+            }
+            let result = await task();
+            this.pending--;
+            let next = this.waiting.shift();
+            if (next) {
+                next();
+            }
+            return result;
+        },
+
+        send: async function(data, uuid) {
+            while(true) {
+                try {
+                    let resp_data = await this.queue(async () => {
+                        let response = await fetch(this.url + `?uuid=${uuid}`, {
+                            method: 'POST',
+                            body: data
+                        });
+                        return await response.text();
+                    });
+                    if (resp_data === "ok") {
+                        return;
+                    } else {
+                        console.error(`Got unexpected send response "{resp_data}"`);
+                    }
+                } catch (fetch_error) {
+                    console.log(fetch_error);
+                }
+                await randomDelay();
+            };
+        },
+
+        poll: async function(uuid) {
+            while(true) {
+                let data = null;
+                try {
+                    data = await this.queue(async () => {
+                        let response = await fetch(this.url + `?uuid=${uuid}`);
+                        return await response.text();
+                    });
+                } catch (fetch_error) {
+                    await randomDelay();
+                }
+                if (data == "none") {
+                    data = null;
+                }
+                return data;
+            }
+        }
+    };
+
+    let stash_message_handler = new StashMessageHandler();
 
     window.test_driver_internal = {
         /**
@@ -586,5 +696,13 @@
         set_storage_access: function(origin, embedding_origin, blocked, context=null) {
             return Promise.reject(new Error("unimplemented"));
         },
+
+        send: function(msg_data, context) {
+            return stash_message_handler.send(msg_data, this._get_context_id(context));
+        },
+
+        poll: function () {
+            return stash_message_handler.poll(this._get_context_id(window));
+        }
     };
 })();
