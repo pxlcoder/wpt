@@ -1,3 +1,4 @@
+import json
 
 class ClickAction(object):
     name = "click"
@@ -48,8 +49,15 @@ class ExecuteAction(object):
         self.protocol = protocol
 
     def __call__(self, payload):
-        rv = self.protocol.base.execute_script(payload["script"],
-                                               payload["async"])
+        fn_string = payload["script"]
+        args = json.dumps(payload["args"] if payload["args"] is not None else [])
+
+        script = f"""
+let callback = arguments[arguments.length - 1];
+let result = ({fn_string}).apply(null, {args})
+Promise.resolve(result).then(callback)
+"""
+        rv = self.protocol.base.execute_script(script, True)
         return rv
 
 

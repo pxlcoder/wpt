@@ -118,19 +118,33 @@
         /**
          * Execute script
          *
-         * Execute some script in a function body, possibly in another context
+         * Execute a function in a specified context. If the function
+         * returns a promise, the returned promise will resolve once
+         * the remote promise is resolved. Note that the
+         * webdriver-based wptrunner implementation will block on the
+         * promise resolving, so an unresolved promise here will both
+         * block other testdriver calls and also the harness from
+         * reporting test results.
          *
-         * @param {String} script - Body of function to run
-         * @param {bool} async - If true, the first argument to the implicit function is
-         *                       a callback which must be called with the script return value.
-         * @param {WindowProxy} context - Browsing context in which
-         *                                to run the call, or null for the current
+         * @callback Callable
+         * @param{...*args}
+         *
+         * @param {Callable} fn - A function to run. This is converted
+         *                        to a string using the `toString()`
+         *                        method and run in the remote
+         *                        context. Therefore it can't close
+         *                        over local arguments.
+         * @param {Array=} args - Args to pass to the remote
+         *                        function. These must be JSON
+         *                        serializable.
+         * @param {WindowProxy} context - Browsing context in which to
+         *                                run the function, or null for the current
          *                                browsing context.
          *
          * @returns {Promise} fulfilled with the return value of the script
          */
-        execute: function(script, async, context=null) {
-            return window.test_driver_internal.execute(script, async, context)
+        execute: function(fn, args, context=null) {
+            return window.test_driver_internal.execute(fn, args, context);
         },
 
         /**
@@ -598,7 +612,7 @@
             throw new Error("unimplemented");
         },
 
-        execute: function(script, async, context=null) {
+        execute: function(fn, args, context=null) {
             return Promise.reject(new Error("unimplemented"));
         },
 
@@ -711,8 +725,8 @@
     };
 
     window.test_driver.RemoteContext.prototype = {
-        execute: function(script, async) {
-            return window.test_driver.execute(script, async, this.context_id);
+        execute: function(fn, args) {
+            return window.test_driver.execute(fn, args, this.context_id);
         },
 
         delete_all_cookies: function() {

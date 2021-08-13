@@ -230,8 +230,9 @@
         return create_action("delete_all_cookies", {context});
     };
 
-    window.test_driver_internal.execute = function(script, async, context=null) {
-        return create_action("execute", {script, async, context});
+    window.test_driver_internal.execute = function(fn, args, context=null) {
+        let fnString = fn.toString();
+        return create_action("execute", {script: fnString, args, context});
     };
 
     window.test_driver_internal.send_keys = function(element, keys) {
