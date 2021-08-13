@@ -12,11 +12,8 @@
 setup({single_test: true})
 console.log("script");
 onload = async () => {
-    console.log("onload")
     var iframe = document.getElementsByTagName("iframe")[0];
-    console.log("before execute")
-    let content = await test_driver.execute("return document.body.textContent", false, iframe);
-    console.log("after execute")
+    let content = await test_driver.execute(() => document.body.textContent, null, iframe);
     assert_equals(content.trim(), "PASS");
     done();
 }

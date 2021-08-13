@@ -5,6 +5,7 @@
 <script src="/resources/testharnessreport.js"></script>
 <script src="/resources/testdriver.js"></script>
 <script src="/resources/testdriver-vendor.js"></script>
+<script src="/resources/channel.sub.js"></script>
 
 <script>
 setup({single_test: true})
@@ -12,14 +13,14 @@ onload = async () => {
     let uuid = "{{uuid()}}";
     let url = "https://{{host}}:{{ports[https][0]}}/infrastructure/testdriver/execute/child_slow.html?uuid=" + uuid;
     win = window.open(url);
-    let content;
-    while (true) {
-        content = await test_driver.execute("let callback = arguments[arguments.length - 1]; if (location.href == 'about:blank') {return null}; setTimeout(() => callback(document.body.textContent), 1000)", true, uuid);
-        if (content !== null) {
-            break
-        }
-    }
-    assert_equals(content.trim(), "PASS");
+
+    let remote = await new TestDriverRemote(uuid);
+
+    let result = await remote.executeScript(async (elemId) => {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        return document.getElementById(elemId).textContent;
+    }, ["test"]);
+    assert_equals(result.trim(), "PASS");
     done();
 }
 </script>
