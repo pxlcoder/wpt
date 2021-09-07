@@ -267,7 +267,7 @@
                 const fnString = params.fn.value;
                 const args = params.args.map(x => {
                     let value = deserialize(x);
-                    if (typeof value == "object") {
+                    if (value.constructor === RemoteObject) {
                         value = value.toLocal();
                     }
                     return value;
@@ -277,7 +277,7 @@ Promise.resolve(result).then(callback);`;
                 console.log("executeScript", body);
                 let value = new Promise(resolve => {
                     const fn = new Function("args", "callback", body);
-                    fn(args, value => {console.log("resolvedScriptFunction"); resolve(value);});
+                    fn(args, value => resolve(value));
                 });
                 result = serialize(await value);
             } else if (command === "postMessage") {
@@ -388,11 +388,18 @@ Promise.resolve(result).then(callback);`;
             return await response;
         }
 
+        _executeScript(fn, args, hasResp) {
+            return this.sendMessage("executeScript", {fn: serialize(fn), args: args.map(x => serialize(x))}, hasResp);
+        }
+
         async executeScript(fn, ...args) {
-            let resp = await this.sendMessage("executeScript", {fn: serialize(fn), args: args.map(x => serialize(x))});
+            let resp = await this._executeScript(fn, args, true);
             let value = deserialize(resp);
-            console.log("executeScript result", value);
             return value;
+        }
+
+        async executeScriptNoResult(fn, ...args) {
+            await this._executeScript(fn, args, false);
         }
 
         postMessage(msg) {
@@ -478,6 +485,7 @@ Promise.resolve(result).then(callback);`;
     }
 
     function serialize(obj) {
+        console.log("serialize", obj);
         const stack = [{item: obj}];
         let serialized = null;
 
