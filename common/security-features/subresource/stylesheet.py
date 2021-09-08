@@ -23,6 +23,9 @@ def generate_payload(request, server_data):
             u"id": isomorphic_decode(request.GET[b"id"]),
             u"property": isomorphic_decode(request.GET[b"property"])}
 
+    elif type == b'empty':
+        return u''
+
 def generate_import_rule(request, server_data):
     return u"@import url('%(url)s');" % {
         u"url": subresource.create_url(request, swap_origin=True,
