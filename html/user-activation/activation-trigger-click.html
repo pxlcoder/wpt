@@ -7,21 +7,21 @@
   <script src="/resources/testdriver-vendor.js"></script>
 </head>
 <body>
-  <h1>Basic user activation test</h1>
-  <p>Tests that a popup is allowed with user activation.</p>
+  <h1>Test for click activation trigger</h1>
+  <p>Tests that a popup is allowed with user activation from a click event.</p>
   <ol id="instructions">
     <li>Click anywhere in the document.
-  </ol></body>
+  </ol>
   <script>
-    let test_w_click = async_test("Popup with click");
+    let test_click = async_test("Activation with click");
 
     window.addEventListener("click", () => {
-        test_w_click.step(() => {
-            let win = window.open();
-            assert_true(!!win);
-            win.close();
-        });
-        test_w_click.done();
+        document.body.requestFullscreen()
+            .then(() => {
+                document.exitFullscreen()
+                    .then(() => test_click.done());
+            })
+        .catch(() => test_click.unreached_func("expect fullscreen from keypress"));
     });
 
     test_driver.click(document.body);
