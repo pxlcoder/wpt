@@ -85,3 +85,94 @@ const showRequestHeaders = function(origin, uuid) {
 const cacheableShowRequestHeaders = function(origin, uuid) {
   return origin + dispatcher_path + `?uuid=${uuid}&cacheable&show-headers`;
 }
+
+// This script requires
+// - `/common/utils.js` for `token()`.
+
+// Represents an remote executor with ID `this.uuid`.
+// For more detailed explanation see `README.md`.
+class RemoteContext {
+  // Caller should create an executor with `this.uuid`.
+  constructor(uuid) {
+    this.context_id = uuid;
+  }
+
+  // Evaluates the script `expr` on the executor.
+  // - If `expr` is evaluated to a Promise that is resolved with a value:
+  //   `eval()` returns a Promise resolved with the value.
+  // - If `expr` is evaluated to a non-Promise value:
+  //   `eval()` returns a Promise resolved with the value.
+  // - If `expr` throws an error or is evaluated to a Promise that is rejected:
+  //   `eval()` returns a rejected Promise with the error's `message`.
+  //   Note that currently the type of error (e.g. DOMException) is not
+  //   preserved.
+  // The values should be able to be serialized by JSON.stringify().
+  async execute_script(fn, args) {
+    const receiver = token();
+    await this.send({receiver: receiver, fn: fn.toString(), args: args});
+    const response = JSON.parse(await receive(receiver));
+    if (response.status === 'success') {
+      return response.value;
+    }
+
+    // exception
+    throw new Error(response.value);
+  }
+
+  async send(msg) {
+    return await send(this.context_id, JSON.stringify(msg));
+  }
+};
+
+class Executor {
+  constructor(uuid) {
+    this.uuid = uuid;
+
+    // If `suspend_callback` is not `null`, the executor should be suspended
+    // when there are no ongoing tasks.
+    this.suspend_callback = null;
+
+    this.execute();
+  }
+
+  suspend(callback) {
+    this.suspend_callback = callback;
+  }
+
+  resume() {
+  }
+
+  async execute() {
+    while(true) {
+      // At this point there are no ongoing tasks and thus it's safe to start
+      // navigation.
+      // Therefore we check whether the executor should be suspended.
+      if (this.suspend_callback !== null) {
+        this.suspend_callback();
+        this.suspend_callback = null;
+        // Wait for `resume()` to be called.
+        await new Promise(resolve => this.resume = resolve);
+        // Workaround for crbug.com/1244230.
+        await new Promise(resolve => setTimeout(resolve, 0));
+        continue;
+      }
+
+      const task = JSON.parse(await receive(this.uuid));
+
+      let response;
+      try {
+        const value = await eval(task.fn).apply(null, task.args);
+        response = JSON.stringify({
+          status: 'success',
+          value: value
+        });
+      } catch(e) {
+        response = JSON.stringify({
+          status: 'exception',
+          value: e.message
+        });
+      }
+      await send(task.receiver, response);
+    }
+  }
+}
