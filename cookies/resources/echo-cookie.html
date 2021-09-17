@@ -4,9 +4,12 @@
   <meta charset=utf-8>
   <title>helper iframe for matching cookie path tests</title>
   <meta name=help href="http://tools.ietf.org/html/rfc6265#section-5.1.4">
+  <script src="/resources/testdriver.js"></script>
+  <script src="/resources/testdriver-vendor.js"></script>
 </head>
 <body>
 <script>
+test_driver.set_test_context(window.top);
 window.setCookie = function (name, path) {
   document.cookie = name + '=1; Path=' + path + ';';
 }
@@ -16,9 +19,7 @@ window.fetchCookieThen = function (name, path) {
 window.isCookieSet = function (name, path) {
   return document.cookie.match(name + '=1');
 };
-window.expireCookie = function (name, path) {
-  document.cookie = name + '=0; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=' + path + ';';
-};
+window.expireCookies = test_driver.delete_all_cookies;
 window.getCookies = () => document.cookie;
 </script>
 </body>
