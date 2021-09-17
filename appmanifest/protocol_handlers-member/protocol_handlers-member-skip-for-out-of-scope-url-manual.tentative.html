@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>Test that protocol_handlers items with out of scope url are skipped</title>
+<link rel="manifest" href="protocol_handlers-member-skip-for-out-of-scope-url.webmanifest" />
+<h1>Test that protocol_handlers items with out of scope url are skipped</h1>
+<style>
+    .fail {
+      background-color: red;
+    }
+
+    .succeed {
+      background-color: green;
+    }
+</style>
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const myParam = urlParams.get('value');
+    if (myParam === "web+testing://test-url/") {
+        document.body.classList.add("succeed");
+    } else {
+        document.body.classList.add("fail");
+    }
+
+</script>
+<p>
+    To pass, when launching the application via web+testing://test-url/,
+    the background color must be green.
+</p>

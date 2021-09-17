@@ -1,0 +1,14 @@
+{
+    "name": "Protocol_handlers Empty Protocol Test",
+    "scope": "/",
+    "protocol_handlers": [
+        {
+          "protocol": "web+testing",
+          "url": "protocol_handlers-member-skip-for-empty-protocol-manual.tentative.html?value=%s"
+        },
+        {
+          "protocol": "",
+          "url": "protocol_handlers-member-skip-for-empty-protocol-manual.tentative.html?value=%s"
+        }
+    ]
+}

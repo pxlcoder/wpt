@@ -1,0 +1,9 @@
+{
+    "name": "Protocol_handlers test",
+    "scope": "/",
+    "protocol_handlers": [
+        {
+          "protocol": "web+testing",
+          "url": "protocol_handlers-member-manual.html?value=%s"
+        }]
+}
